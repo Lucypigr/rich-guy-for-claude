@@ -1,0 +1,1 @@
+# rich-guy-for-claude
