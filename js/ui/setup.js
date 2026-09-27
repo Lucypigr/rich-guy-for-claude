@@ -33,6 +33,7 @@ RG.Setup = {
   },
 
   show() {
+    if (RG.UI.game) RG.UI.game.aborted = true;
     RG.UI.game = null;
     document.getElementById('modal-root').innerHTML = '';
     document.querySelectorAll('.pick-banner').forEach((b) => b.remove());
@@ -166,6 +167,7 @@ RG.Setup = {
       { players, dice: st.options.dice, target: st.options.target, maxRounds: st.options.maxRounds, startCash: st.options.startCash },
       io
     );
+    io.game = game;
     RG.UI.mount(game);
     game.run().catch((e) => {
       console.error(e);

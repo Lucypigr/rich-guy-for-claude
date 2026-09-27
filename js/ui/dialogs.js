@@ -2,9 +2,13 @@
 var RG = (globalThis.RG = globalThis.RG || {});
 
 RG.Dialogs = {
+  speaker(p, suffix = '') {
+    return p ? `<div class="speaker" style="--c:${p.color}"><span class="face">${p.icon}</span><b>${RG.U.esc(p.name)}</b>${suffix ? `<span>${suffix}</span>` : ''}</div>` : '';
+  },
+
   open(inner, opts = {}) {
     const overlay = document.createElement('div');
-    overlay.className = 'overlay' + (opts.passive ? ' passive' : '');
+    overlay.className = 'overlay' + (opts.passive ? ' passive' : '') + (opts.low ? ' low' : '');
     const dlg = document.createElement('div');
     dlg.className = 'dialog' + (opts.wide ? ' wide' : '');
     dlg.setAttribute('role', 'dialog');
@@ -53,13 +57,13 @@ RG.Dialogs = {
   choose(p, o) {
     return new Promise((resolve) => {
       if (o.tile != null) this.focusTile(o.tile);
-      const who = p ? `<div class="d-sub">${p.icon} ${p.name} 的決定</div>` : '';
+      const who = this.speaker(p);
       const html = `${who}<h3>${RG.U.esc(o.title)}</h3>${o.text ? `<p class="d-text">${RG.U.esc(o.text)}</p>` : ''}
         <div class="options">${o.options
           .map((op, i) => `<button class="option" data-i="${i}" ${op.disabled ? 'disabled' : ''}><span>${RG.U.esc(op.label)}</span>${op.sub ? `<span class="o-sub">${RG.U.esc(op.sub)}</span>` : ''}</button>`)
           .join('')}</div>
         ${o.cancelable ? '<div class="row end" style="margin-top:12px"><button class="btn ghost" data-cancel>取消</button></div>' : ''}`;
-      const d = this.open(html);
+      const d = this.open(html, { low: o.tile != null });
       const done = (v) => {
         RG.UI.focusTile = null;
         d.close();
@@ -91,10 +95,10 @@ RG.Dialogs = {
           return RG.UI.cardHTML(id, ok ? 'playable' : 'disabled').replace('<button ', `<button data-idx="${idx}" ${ok ? '' : 'disabled'} `);
         })
         .join('');
-      const html = `<div class="d-sub">${p.icon} ${p.name} 的決定</div><h3>${RG.U.esc(o.title)}</h3>
+      const html = `${this.speaker(p)}<h3>${RG.U.esc(o.title)}</h3>
         <div class="pick-cards">${cards}</div><p class="d-sub" id="pc-desc">點選發亮的卡片。</p>
         <div class="row end">${o.allowNone ? '<button class="btn" data-none>不使用</button>' : ''}</div>`;
-      const d = this.open(html, { wide: true });
+      const d = this.open(html, { wide: true, low: o.tile != null });
       const done = (v) => {
         RG.UI.focusTile = null;
         d.close();
@@ -149,6 +153,7 @@ RG.Dialogs = {
 
   tileInfo(t) {
     const g = RG.UI.game;
+    this.focusTile(t.idx);
     let body = '';
     if (t.type === 'land') {
       const d = RG.DISTRICTS.find((x) => x.id === t.district);
@@ -180,7 +185,14 @@ RG.Dialogs = {
     }
     if (t.god) body += `<p class="d-text">${RG.GODS[t.god].icon} ${RG.GODS[t.god].name}在這裡：${RG.GODS[t.god].desc}經過或停留就會附身。</p>`;
     if (t.block) body += '<p class="d-text">🚧 這裡有路障，經過時會被擋下。</p>';
-    const d = this.open(`<h3>${t.type === 'suit' ? RG.SUITS[t.suit].icon : ''}${t.name}</h3>${body}<div class="row end"><button class="btn">關閉</button></div>`, { dismiss: true });
+    const d = this.open(`<h3>${t.type === 'suit' ? RG.SUITS[t.suit].icon : ''}${t.name}</h3>${body}<div class="row end"><button class="btn">關閉</button></div>`, {
+      dismiss: true,
+      low: true,
+      onClose: () => {
+        RG.UI.focusTile = null;
+        RG.UI.renderBoard();
+      },
+    });
     d.dlg.querySelector('button').onclick = () => d.close();
   },
 
@@ -204,7 +216,7 @@ RG.Dialogs = {
             <td class="r num">${price}</td><td class="r num">${own}</td><td class="r num">${RG.U.money(own * price)}</td>
             <td><div class="row" style="gap:4px">${buy}${sell}</div></td></tr>`;
         }).join('');
-        d.dlg.innerHTML = `<div class="d-sub">${p.icon} ${p.name}</div><h3>📈 股市${o.canBuy ? '' : '（只能賣出）'}</h3>
+        d.dlg.innerHTML = `${RG.Dialogs.speaker(p)}<h3>📈 股市${o.canBuy ? '' : '（只能賣出）'}</h3>
           <p class="d-sub">現金 <b class="num" style="color:var(--gold)">${RG.U.money(p.cash)}</b>・每個商圈最多持有 ${RG.MAX_SHARES} 股。一次買賣 10 股以上會推動股價。
           有人在該商圈付過路費時，每股可領過路費 0.5% 的股利（最多 25%）。地產加蓋會帶動股價上漲。</p>
           <div style="overflow-x:auto"><table class="stocks"><thead><tr><th>股票</th><th class="r">股價</th><th class="r">持股</th><th class="r">市值</th><th>交易</th></tr></thead><tbody>${rows}</tbody></table></div>
@@ -232,7 +244,7 @@ RG.Dialogs = {
     return new Promise((resolve) => {
       const g = RG.UI.game;
       const o = g.ownerOf(t);
-      const html = `<div class="d-sub">${p.icon} ${p.name}</div><h3>💰 支付過路費給 ${o.icon}${o.name}</h3>
+      const html = `${this.speaker(p)}<h3>💰 支付過路費給 ${o.icon}${o.name}</h3>
         <p class="d-text">「${t.name}」${RG.LEVEL_NAMES[t.level]}</p>
         <dl class="kv"><dt>基本</dt><dd class="num">${RG.U.money(bd.base)}</dd>
         <dt>商圈加成</dt><dd>×${bd.district.mult.toFixed(2)}（持有 ${bd.district.owned}/${bd.district.total}）</dd>
@@ -254,7 +266,7 @@ RG.Dialogs = {
     return new Promise((resolve) => {
       const gc = RG.card(t.guardian.id);
       let ci = null, ii = null;
-      const d = this.open('<div></div>', { wide: true });
+      const d = this.open('<div></div>', { wide: true, low: true });
       RG.Dialogs.focusTile(t.idx);
       const draw = () => {
         const bonusFor = (a) => (gc.element === t.element && t.element !== 'neutral' && !(a && (a.abilities || []).includes('pierce')) ? 10 * (t.level + 1) : 0);
@@ -279,7 +291,7 @@ RG.Dialogs = {
           const firstD = (gc.abilities || []).includes('first') && !(a.abilities || []).includes('first') && !(it && it.grant === 'first') && p.job !== 'ninja';
           preview = `你的 ${a.name}${it ? '＋' + it.name : ''}：ST ${st} / HP ${hp}　vs　${gc.name}：ST ${gc.st} / HP ${dhp}（對手可能再加道具）\n${firstD ? '⚠️ 對手有先制，會先攻擊。' : '你先攻擊。'}${st >= dhp ? '一擊就能打倒守護獸！' : '無法一擊打倒，需要承受反擊。'}　花費 ${RG.U.money(cost)}`;
         }
-        d.dlg.innerHTML = `<div class="d-sub">${p.icon} ${p.name} 的決定</div><h3>⚔️ 侵略「${t.name}」？</h3>
+        d.dlg.innerHTML = `${RG.Dialogs.speaker(p)}<h3>⚔️ 侵略「${t.name}」？</h3>
           <p class="d-text">守護獸 ${gc.icon} ${gc.name}（${RG.ELEMENTS[gc.element].icon}）ST ${gc.st}／HP ${t.guardian.hp}/${t.guardian.maxHp}${bonusFor(null) ? `，屬性相同地形加成 +${bonusFor(null)} HP` : ''}
 過路費 ${RG.U.money(g.toll(t, p))}。侵略成功就能奪下這塊地（含建築），失敗仍要付過路費。</p>
           <div class="pick-cards">${cards}</div><p class="d-text" style="color:var(--gold)">${RG.U.esc(preview)}</p>
@@ -398,6 +410,48 @@ RG.Dialogs = {
     });
   },
 
+  marketView() {
+    const g = RG.UI.game;
+    const rows = RG.DISTRICTS.map((d) => {
+      const price = g.stockPrice(d.id);
+      const hist = g.market[d.id].history.concat([price]);
+      const prev = hist.length > 1 ? hist[hist.length - 2] : price;
+      const cls = price > prev ? 'up' : price < prev ? 'down' : '';
+      const arrow = price > prev ? '▲' : price < prev ? '▼' : '－';
+      const holders = g.players.filter((p) => p.stocks[d.id] > 0).map((p) => `${p.icon}${p.stocks[d.id]}`).join(' ');
+      const owners = g.board.filter((t) => t.district === d.id && t.owner != null).map((t) => g.players[t.owner].icon).join('');
+      return `<tr><td><span class="dot" style="background:${d.color}"></span>${d.stock}<div class="d-sub">${d.name} 地主：${owners || '無'}</div></td>
+        <td>${RG.UI.sparkline(hist.slice(-16), d.color)}</td><td class="r num ${cls}">${arrow} ${price}</td><td class="r">${holders || '—'}</td></tr>`;
+    }).join('');
+    const d = this.open(`<h3>📈 股市行情</h3><p class="d-sub">在銀行或證券所可買股票，自己回合擲骰前可賣。有人在商圈付過路費時，股東每股分得 0.5% 股利（最多 25%）。</p>
+      <div style="overflow-x:auto"><table class="stocks"><thead><tr><th>股票</th><th>走勢</th><th class="r">股價</th><th class="r">持股</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="row end" style="margin-top:12px"><button class="btn primary">關閉</button></div>`, { wide: true, dismiss: true });
+    d.dlg.querySelector('.btn.primary').onclick = () => d.close();
+  },
+
+  menu() {
+    const d = this.open(`<h3>☰ 選單</h3><div class="options">
+      <button class="option" data-m="rules"><span>📜 規則說明</span><span class="o-sub">四款遊戲的系統怎麼結合</span></button>
+      <button class="option" data-m="speed"><span>⏩ 電腦速度：${RG.UI.speed < 0.5 ? '快' : RG.UI.speed > 1.2 ? '慢' : '中'}</span><span class="o-sub">點一下切換 慢 / 中 / 快</span></button>
+      <button class="option" data-m="title"><span>🏠 回到標題畫面</span><span class="o-sub">放棄目前這局</span></button>
+      <button class="option" data-m="close"><span>▶️ 繼續遊戲</span></button></div>`, { dismiss: true });
+    d.dlg.querySelectorAll('[data-m]').forEach((b) => {
+      b.onclick = () => {
+        const m = b.dataset.m;
+        d.close();
+        if (m === 'rules') RG.Setup.rules();
+        if (m === 'speed') {
+          RG.UI.speed = RG.UI.speed < 0.5 ? 1.6 : RG.UI.speed > 1.2 ? 1 : 0.35;
+          this.menu();
+        }
+        if (m === 'title') {
+          if (RG.UI.game) RG.UI.game.aborted = true;
+          RG.Setup.show();
+        }
+      };
+    });
+  },
+
   gameOver(ranking, winner) {
     const g = RG.UI.game;
     const rows = ranking
@@ -418,21 +472,21 @@ RG.Dialogs = {
 RG.makeIO = function () {
   const UI = RG.UI, D = RG.Dialogs, U = RG.U;
   const human = (p) => p && !p.isCPU;
-  return {
+  const io = {
     log: (m, c) => UI.log(m, c),
     render: () => UI.render(),
     pause: (ms) => U.sleep(ms * UI.speed),
     toast: (m) => D.toast(U.esc(m)),
     async turnStart(p) {
       UI.showDice([]);
+      UI.banner(p);
       if (human(p) && UI.game.players.filter((q) => !q.isCPU && !q.bankrupt).length > 1) {
         D.toast(`輪到 ${p.icon} ${p.name}`);
       }
       await U.sleep(p.isCPU ? 250 * UI.speed : 100);
     },
     async moveStep(p) {
-      UI.renderBoard();
-      await U.sleep(p.isCPU ? 130 * UI.speed : 150);
+      await RG.World.walk(p, p.isCPU ? Math.max(90, 200 * UI.speed) : 210);
     },
     async showDice(p, values) {
       for (let k = 0; k < 6; k++) {
@@ -484,4 +538,15 @@ RG.makeIO = function () {
     },
     gameOver: (r, w) => D.gameOver(r, w),
   };
+  // 離開這局後（回到標題或開新局），舊遊戲的所有呼叫都會被凍結，不再影響畫面
+  const alive = () => !io.game || (UI.game === io.game && !io.game.aborted);
+  const SYNC = new Set(['log', 'render', 'toast']);
+  Object.keys(io).forEach((k) => {
+    const fn = io[k];
+    io[k] = (...args) => {
+      if (alive()) return fn(...args);
+      return SYNC.has(k) ? undefined : new Promise(() => {});
+    };
+  });
+  return io;
 };
