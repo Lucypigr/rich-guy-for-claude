@@ -431,15 +431,19 @@ RG.Dialogs = {
 
   menu() {
     const d = this.open(`<h3>☰ 選單</h3><div class="options">
+      <button class="option" data-m="save"><span>💾 存檔</span><span class="o-sub">存到欄位，或匯出存檔碼</span></button>
+      <button class="option" data-m="load"><span>📂 讀取存檔</span><span class="o-sub">自動存檔、欄位或匯入存檔碼</span></button>
       <button class="option" data-m="rules"><span>📜 規則說明</span><span class="o-sub">四款遊戲的系統怎麼結合</span></button>
       <button class="option" data-m="speed"><span>⏩ 電腦速度：${RG.UI.speed < 0.5 ? '快' : RG.UI.speed > 1.2 ? '慢' : '中'}</span><span class="o-sub">點一下切換 慢 / 中 / 快</span></button>
-      <button class="option" data-m="title"><span>🏠 回到標題畫面</span><span class="o-sub">放棄目前這局</span></button>
+      <button class="option" data-m="title"><span>🏠 回到標題畫面</span><span class="o-sub">進度保留在自動存檔，可從標題「繼續遊戲」</span></button>
       <button class="option" data-m="close"><span>▶️ 繼續遊戲</span></button></div>`, { dismiss: true });
     d.dlg.querySelectorAll('[data-m]').forEach((b) => {
       b.onclick = () => {
         const m = b.dataset.m;
         d.close();
         if (m === 'rules') RG.Setup.rules();
+        if (m === 'save') this.saveMenu();
+        if (m === 'load') this.loadMenu();
         if (m === 'speed') {
           RG.UI.speed = RG.UI.speed < 0.5 ? 1.6 : RG.UI.speed > 1.2 ? 1 : 0.35;
           this.menu();
@@ -536,7 +540,14 @@ RG.makeIO = function () {
       D.toast(res.lines.map((l) => U.esc(l)).slice(-1)[0]);
       await U.sleep(600 * UI.speed);
     },
-    gameOver: (r, w) => D.gameOver(r, w),
+    checkpoint(cp) {
+      UI.lastCheckpoint = cp;
+      RG.SaveStore.write('auto', { cp, log: UI.logLines.slice(-80) });
+    },
+    gameOver(r, w) {
+      RG.SaveStore.remove('auto');
+      return D.gameOver(r, w);
+    },
   };
   // 離開這局後（回到標題或開新局），舊遊戲的所有呼叫都會被凍結，不再影響畫面
   const alive = () => !io.game || (UI.game === io.game && !io.game.aborted);

@@ -15,6 +15,7 @@ const files = [
   'js/engine/battle.js',
   'js/engine/effects.js',
   'js/engine/ai.js',
+  'js/engine/save.js',
 ];
 const ctx = { console, setTimeout, Math, Date };
 ctx.globalThis = ctx;
@@ -96,7 +97,30 @@ async function main() {
   if (stats.decks) console.log('winnerDecks', stats.decks);
   console.log('per game: invasions', (stats.invasions / n).toFixed(1), 'invadeWins', (stats.invadeWins / n).toFixed(1), 'battles', (stats.battles / n).toFixed(1), 'promotions', (stats.promotions / n).toFixed(1), 'buyouts', (stats.buyouts / n).toFixed(1), 'bankrupts', (stats.bankrupts / n).toFixed(1));
 }
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+// 存檔測試：在第 10 回合的存檔點存檔，用存檔建立新遊戲並跑完整局
+async function saveRoundTrip() {
+  let saved = null;
+  const chars = RG.CHARACTERS.slice(0, 4);
+  const cfg = { players: chars.map((c) => ({ name: c.name, icon: c.icon, color: c.color, job: c.job, deck: RG.PRESET_DECKS[c.deck].cards, isCPU: true })) };
+  const io = makeIO([]);
+  io.checkpoint = (cp) => {
+    if (!saved && cp.round >= 10) saved = JSON.stringify(cp);
+  };
+  await new RG.Game(cfg, io).run();
+  if (!saved) return console.log('save test: game ended before round 10');
+  const data = JSON.parse(saved);
+  const g2 = new RG.Game(data.config, makeIO([]), data);
+  const again = g2.serialize();
+  delete again.savedAt;
+  delete data.savedAt;
+  if (JSON.stringify(again) !== JSON.stringify(data)) throw new Error('save round-trip mismatch');
+  await g2.run();
+  console.log(`save test: OK（從第 ${data.round} 回合讀檔，第 ${g2.round} 回合結束，${g2.winner.name} 獲勝）`);
+}
+
+main()
+  .then(saveRoundTrip)
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });

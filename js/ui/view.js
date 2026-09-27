@@ -10,6 +10,7 @@ RG.UI = {
   focusTile: null,
   lastCash: {},
   lastLevel: [],
+  logLines: [],
 
   h(html) {
     const t = document.createElement('template');
@@ -24,6 +25,7 @@ RG.UI = {
     this.focusTile = null;
     this.lastCash = {};
     this.lastLevel = [];
+    this.logLines = [];
     const app = document.getElementById('app');
     app.innerHTML = `
       <div class="stage">
@@ -247,7 +249,7 @@ RG.UI = {
       const prev = this.lastCash[p.id];
       if (prev != null && prev !== p.cash && !p.bankrupt) {
         const d = p.cash - prev;
-        RG.World.floatText(p, `${d > 0 ? '+' : '-'}${RG.U.money(Math.abs(d))}`, d > 0 ? '#7dff9a' : '#ff8f8f');
+        RG.World.floatText(p, `${d > 0 ? '+' : '-'}${RG.U.money(Math.abs(d))}`, d > 0 ? '#7dff9a' : '#ff8f8f', d > 0);
       }
       this.lastCash[p.id] = p.cash;
     });
@@ -266,6 +268,8 @@ RG.UI = {
 
   log(msg, cls) {
     if (!this.logEl) return;
+    this.logLines.push({ m: msg, c: cls || '' });
+    if (this.logLines.length > 120) this.logLines.shift();
     const div = document.createElement('div');
     if (cls) div.className = 'l-' + cls;
     div.textContent = msg;

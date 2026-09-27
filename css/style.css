@@ -1246,6 +1246,78 @@ select,
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
 }
 
+/* 存檔 */
+.continue {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: stretch;
+  margin-bottom: 18px;
+}
+.btn.cont {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-size: 18px;
+  padding: 8px 24px;
+  background: linear-gradient(#8ff0a8, #2fb257);
+  color: #fff;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+.btn.cont small {
+  font-size: 12px;
+  font-weight: 400;
+}
+.option .o-sub,
+.save-row .o-sub {
+  white-space: pre-line;
+}
+.save-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.save-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--paper);
+  border: 2.5px solid var(--brown);
+  border-radius: 14px;
+  padding: 8px 12px;
+  box-shadow: 0 3px 0 var(--brown);
+}
+.save-row.empty {
+  opacity: 0.55;
+  box-shadow: none;
+  border-style: dashed;
+}
+.save-row .o-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+.codebox {
+  width: 100%;
+  min-height: 90px;
+  font: 12px/1.4 ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--brown);
+  border-radius: 10px;
+  padding: 8px;
+  resize: vertical;
+  word-break: break-all;
+}
+.filebtn {
+  display: inline-flex;
+  align-items: center;
+}
+.dialog h4 {
+  color: var(--brown-2);
+}
+
 /* 牌組編輯器 */
 .db-grid {
   display: grid;

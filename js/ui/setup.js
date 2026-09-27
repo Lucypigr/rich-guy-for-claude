@@ -86,6 +86,7 @@ RG.Setup = {
           <div class="pillar"><b>📈 Fortune Street</b><span>商圈股票、股利、花色升遷、5 倍收購</span></div>
         </div>
       </div>
+      ${this.continueHTML()}
       <div class="slots">${slotHTML}</div>
       <div class="opts">
         <label class="field">骰子${this.seg('dice', o.dice, [[1, '1 顆（慢）'], [2, '2 顆（標準）']])}</label>
@@ -140,6 +141,9 @@ RG.Setup = {
       });
     });
     app.querySelector('[data-rules]').onclick = () => this.rules();
+    const cont = app.querySelector('[data-continue]');
+    if (cont) cont.onclick = () => this.loadGame(RG.SaveStore.read('auto'));
+    app.querySelector('[data-loadmenu]').onclick = () => RG.Dialogs.loadMenu();
     app.querySelector('[data-reset]').onclick = () => { this.state = this.defaults(); this.commit(); };
     app.querySelector('[data-start]').onclick = () => this.start();
   },
@@ -147,6 +151,39 @@ RG.Setup = {
   commit() {
     this.save();
     this.draw();
+  },
+
+  continueHTML() {
+    const S = RG.SaveStore;
+    const auto = S.read('auto');
+    const info = auto ? S.describe(auto) : null;
+    return `<div class="continue">
+      ${auto ? `<button class="btn primary cont" data-continue><span>▶ 繼續上次的遊戲</span><small>${RG.U.esc(info.title)}</small></button>` : ''}
+      <button class="btn" data-loadmenu>📂 讀取存檔／匯入存檔碼</button></div>`;
+  },
+
+  loadGame(payload) {
+    if (!payload || !payload.cp) return;
+    if (RG.UI.game) RG.UI.game.aborted = true;
+    document.getElementById('modal-root').innerHTML = '';
+    document.querySelectorAll('.pick-banner').forEach((b) => b.remove());
+    if (!this.state) this.state = this.load();
+    RG.UI.speed = this.state.options.speed;
+    const io = RG.makeIO();
+    let game;
+    try {
+      game = new RG.Game(payload.cp.config, io, payload.cp);
+    } catch (e) {
+      RG.Dialogs.toast('⚠️ 存檔無法讀取：' + RG.U.esc(e.message));
+      return;
+    }
+    io.game = game;
+    RG.UI.mount(game);
+    (payload.log || []).forEach((l) => RG.UI.log(l.m, l.c));
+    game.run().catch((e) => {
+      console.error(e);
+      RG.UI.log('⚠️ 發生錯誤：' + e.message, 'bad');
+    });
   },
 
   start() {

@@ -5,15 +5,20 @@ RG.HAND_LIMIT = 7;
 RG.START_HAND = 4;
 
 RG.Game = class Game {
-  constructor(config, io) {
+  constructor(config, io, save) {
     this.io = io;
     this.config = Object.assign({ startCash: 3000, target: 10000, maxRounds: 40, dice: 2 }, config);
     this.board = RG.buildBoard();
     this.round = 1;
+    this.turnIndex = 0;
     this.over = false;
     this.winner = null;
     this.turnPlayer = null;
     this.market = {};
+    if (save) {
+      this.restore(save);
+      return;
+    }
     RG.DISTRICTS.forEach((d) => (this.market[d.id] = { factor: 1, history: [] }));
     this.players = config.players.map((pc, i) => this.createPlayer(pc, i));
     RG.DISTRICTS.forEach((d) => this.market[d.id].history.push(this.stockPrice(d.id)));
@@ -146,15 +151,22 @@ RG.Game = class Game {
 
   // ---------- 主迴圈 ----------
   async run() {
-    this.log('🎲 遊戲開始！先達到目標資產並回到銀行者獲勝。', 'sys');
+    if (this.resumed) this.log(`💾 讀取存檔：第 ${this.round} 回合，輪到 ${this.players[this.turnIndex].name}。`, 'sys');
+    else this.log('🎲 遊戲開始！先達到目標資產並回到銀行者獲勝。', 'sys');
     while (!this.over) {
-      for (const p of this.players) {
+      for (let i = this.turnIndex; i < this.players.length; i++) {
+        const p = this.players[i];
         if (this.over) break;
         if (p.bankrupt) continue;
+        // 每個回合開始前建立存檔點（自動存檔與手動存檔都用這個狀態）
+        this.turnIndex = i;
+        this.checkpoint = this.serialize();
+        if (this.io.checkpoint) this.io.checkpoint(this.checkpoint);
         await this.playTurn(p);
         this.checkEnd();
       }
       if (this.over) break;
+      this.turnIndex = 0;
       this.endRound();
     }
     this.io.render();
